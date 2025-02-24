@@ -18,6 +18,7 @@ function App() {
           <Route path="weather" element={<Weather />} />
           <Route path="marketplace" element={<Marketplace />} />
           <Route path="dashboard" element={<Dashboard />} />
+          {/* <Route path="https://chatbot-farm-assist.vercel.app/" element={<ChatBot />} /> */}
         </Route>
       </Routes>
     </BrowserRouter>

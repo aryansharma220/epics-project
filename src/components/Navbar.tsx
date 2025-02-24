@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Sun, Moon, Globe } from 'lucide-react';
+import { Sun, Moon, Globe, BotIcon } from 'lucide-react';
 import { useStore } from '../store';
 
 export default function Navbar() {
@@ -18,6 +18,10 @@ export default function Navbar() {
     setLanguage(newLang);
   };
 
+  const openChatBot =() =>{
+    window.location.href = 'https://chatbot-farm-assist.vercel.app/';
+  }
+
   return (
     <nav className={`${
       preferences.isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-800'
@@ -33,9 +37,16 @@ export default function Navbar() {
               <Link to="/weather" className="hover:text-green-500">{t('nav.weather')}</Link>
               <Link to="/marketplace" className="hover:text-green-500">{t('nav.marketplace')}</Link>
               <Link to="/dashboard" className="hover:text-green-500">{t('nav.dashboard')}</Link>
+
             </div>
           </div>
           <div className="flex items-center space-x-4">
+            <button
+              onClick={openChatBot}
+              className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
+            >
+              <BotIcon size={20} />
+            </button>
             <button
               onClick={toggleLanguage}
               className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   BarChart2,
@@ -16,7 +16,13 @@ import {
   ChevronDown,
   Plus
 } from 'lucide-react';
+import { dashboardService } from '../services/dashboardService';
+import { cropDataApi } from '../services/api';
+import { toast } from 'react-hot-toast';
+import { validateCropData } from '../utils/validation';
+import { exportToCSV, exportAnalysisReport } from '../utils/export';
 import type { FarmingTask } from '../types';
+import type { CropData, AnalysisResult, DashboardStats } from '../types/dashboard';
 
 const cropYields = [
   { month: 'Jan', yield: 2.4, target: 2.2, rainfall: 45, temperature: 22 },
@@ -90,6 +96,101 @@ export default function Dashboard() {
   const [taskFilter, setTaskFilter] = useState<'all' | 'pending' | 'completed'>('all');
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState<FarmingTask | null>(null);
+  const [newTask, setNewTask] = useState<Partial<FarmingTask>>({
+    title: '',
+    description: '',
+    due: '',
+    priority: 'medium',
+    category: '',
+    notes: [],
+    status: 'pending'
+  });
+
+  const [cropData, setCropData] = useState<CropData[]>([]);
+  const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [showDataForm, setShowDataForm] = useState(false);
+  const [newCropData, setNewCropData] = useState<Omit<CropData, 'id'>>({
+    month: new Date().toLocaleString('default', { month: 'short' }),
+    yield: 0,
+    target: 0,
+    rainfall: 0,
+    temperature: 0
+  });
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+
+  const handleNumberInput = (e: React.ChangeEvent<HTMLInputElement>, field: keyof Omit<CropData, 'id'>) => {
+    const value = e.target.value === '' ? 0 : parseFloat(e.target.value);
+    if (!isNaN(value)) {
+      setNewCropData(prev => ({
+        ...prev,
+        [field]: value
+      }));
+    }
+  };
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    setIsLoading(true);
+    try {
+      const [stats, analysis] = await Promise.all([
+        cropDataApi.getRealtimeStats(),
+        cropDataApi.getAnalysis()
+      ]);
+      setStats(stats);
+      setAnalysis(analysis);
+    } catch (error) {
+      toast.error('Failed to fetch dashboard data');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSubmitCropData = async () => {
+    const { isValid, errors } = validateCropData(newCropData);
+    if (!isValid) {
+      setValidationErrors(errors);
+      return;
+    }
+
+    setIsLoading(true);
+    setIsAnalyzing(true);
+    try {
+      await cropDataApi.submitCropData(newCropData);
+      await fetchDashboardData();
+      setShowDataForm(false);
+      toast.success('Crop data submitted successfully');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to submit crop data');
+    } finally {
+      setIsLoading(false);
+      setIsAnalyzing(false);
+    }
+  };
+
+  const handleExportData = useCallback(() => {
+    try {
+      exportToCSV(cropData);
+      toast.success('Data exported successfully');
+    } catch (error) {
+      toast.error('Failed to export data');
+    }
+  }, [cropData]);
+
+  const handleExportAnalysis = useCallback(() => {
+    if (!analysis) return;
+    try {
+      exportAnalysisReport(analysis);
+      toast.success('Analysis report exported successfully');
+    } catch (error) {
+      toast.error('Failed to export analysis');
+    }
+  }, [analysis]);
 
   const filteredTasks = tasks.filter(task => {
     if (taskFilter === 'all') return true;
@@ -109,86 +210,181 @@ export default function Dashboard() {
     }));
   };
 
+  const handleAddTask = () => {
+    const task: FarmingTask = {
+      id: String(Date.now()),
+      ...newTask as Omit<FarmingTask, 'id'>
+    };
+    setTasks([...tasks, task]);
+    setShowTaskModal(false);
+    setNewTask({
+      title: '',
+      description: '',
+      due: '',
+      priority: 'medium',
+      category: '',
+      notes: [],
+      status: 'pending'
+    });
+  };
+
+  const handleUpdateTask = () => {
+    if (!selectedTask) return;
+    setTasks(tasks.map(t => t.id === selectedTask.id ? { ...selectedTask } : t));
+    setShowTaskModal(false);
+    setSelectedTask(null);
+  };
+
   return (
     <div className="space-y-6">
-      {/* Stats Overview */}
-      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Total Yield</p>
-              <h3 className="text-2xl font-bold dark:text-white">20.3 tons</h3>
-            </div>
-            <Sprout className="w-8 h-8 text-green-500" />
-          </div>
-          <div className="flex items-center text-sm">
-            <TrendingUp className="w-4 h-4 text-green-500 mr-1" />
-            <span className="text-green-500">+12.5%</span>
-            <span className="text-gray-500 dark:text-gray-400 ml-2">from last month</span>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Rainfall</p>
-              <h3 className="text-2xl font-bold dark:text-white">85 mm</h3>
-            </div>
-            <CloudRain className="w-8 h-8 text-blue-500" />
-          </div>
-          <div className="flex items-center text-sm">
-            <TrendingUp className="w-4 h-4 text-blue-500 mr-1" />
-            <span className="text-blue-500">+5.2%</span>
-            <span className="text-gray-500 dark:text-gray-400 ml-2">from last week</span>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Revenue</p>
-              <h3 className="text-2xl font-bold dark:text-white">₹45,250</h3>
-            </div>
-            <DollarSign className="w-8 h-8 text-yellow-500" />
-          </div>
-          <div className="flex items-center text-sm">
-            <TrendingUp className="w-4 h-4 text-yellow-500 mr-1" />
-            <span className="text-yellow-500">+8.1%</span>
-            <span className="text-gray-500 dark:text-gray-400 ml-2">from last month</span>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Tasks</p>
-              <h3 className="text-2xl font-bold dark:text-white">
-                {tasks.filter(t => t.status !== 'completed').length}
-              </h3>
-            </div>
-            <Calendar className="w-8 h-8 text-purple-500" />
-          </div>
-          <div className="flex items-center text-sm">
-            <span className="text-purple-500">
-              {tasks.filter(t => t.status === 'pending').length} pending
-            </span>
-            <span className="text-gray-500 dark:text-gray-400 ml-2">
-              {tasks.filter(t => t.status === 'completed').length} completed
-            </span>
-          </div>
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold dark:text-white">Farm Dashboard</h1>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={handleExportData}
+            className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors"
+            disabled={cropData.length === 0}
+          >
+            Export Data
+          </button>
+          <button
+            onClick={handleExportAnalysis}
+            className="bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-600 transition-colors"
+            disabled={!analysis}
+          >
+            Export Analysis
+          </button>
+          <button
+            onClick={() => setShowDataForm(true)}
+            className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            Add Crop Data
+          </button>
         </div>
       </div>
 
+      {/* Stats Overview */}
+      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {stats && (
+          <>
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Total Yield</p>
+                  <h3 className="text-2xl font-bold dark:text-white">{stats.totalYield.toFixed(1)} tons</h3>
+                </div>
+                <Sprout className="w-8 h-8 text-green-500" />
+              </div>
+              {analysis && (
+                <div className="flex items-center text-sm">
+                  <TrendingUp className="w-4 h-4 text-green-500 mr-1" />
+                  <span className={analysis.yieldTrend >= 0 ? "text-green-500" : "text-red-500"}>
+                    {analysis.yieldTrend.toFixed(1)}%
+                  </span>
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Analysis Results Section */}
+      {analysis && (
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+          <h3 className="text-xl font-semibold mb-4 dark:text-white">Analysis Results</h3>
+          <div className="grid md:grid-cols-2 gap-4">
+            <div>
+              <h4 className="font-medium dark:text-white">Recommendations</h4>
+              <ul className="mt-2 space-y-2">
+                {analysis.recommendedActions.map((action, index) => (
+                  <li key={index} className="flex items-center gap-2 text-sm dark:text-gray-300">
+                    <AlertCircle className="w-4 h-4 text-yellow-500" />
+                    {action}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-medium dark:text-white">Predicted Yield</h4>
+              <p className="text-2xl font-bold mt-2 text-green-500">
+                {analysis.predictedYield.toFixed(1)} tons
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Efficiency Metrics */}
+      {analysis && (
+        <>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+            <h3 className="text-xl font-semibold mb-4 dark:text-white">Efficiency Metrics</h3>
+            <div className="grid md:grid-cols-3 gap-4">
+              <div>
+                <h4 className="font-medium dark:text-white">Yield Efficiency</h4>
+                <p className="text-2xl font-bold mt-2 text-blue-500">
+                  {analysis.cropAnalysis.efficiencyMetrics.yieldEfficiency.toFixed(1)}%
+                </p>
+              </div>
+              <div>
+                <h4 className="font-medium dark:text-white">Water Usage Efficiency</h4>
+                <p className="text-2xl font-bold mt-2 text-blue-500">
+                  {analysis.cropAnalysis.efficiencyMetrics.waterUsageEfficiency.toFixed(2)}
+                </p>
+              </div>
+              <div>
+                <h4 className="font-medium dark:text-white">Target Achievement</h4>
+                <p className="text-2xl font-bold mt-2 text-blue-500">
+                  {analysis.cropAnalysis.efficiencyMetrics.targetAchievement.toFixed(1)}%
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+            <h3 className="text-xl font-semibold mb-4 dark:text-white">Risk Assessment</h3>
+            <div className="space-y-4">
+              {analysis.cropAnalysis.riskFactors.map((risk, index) => (
+                <div key={index} className={`p-4 rounded-lg ${
+                  risk.risk === 'high' ? 'bg-red-50 dark:bg-red-900/20' :
+                  risk.risk === 'medium' ? 'bg-yellow-50 dark:bg-yellow-900/20' :
+                  'bg-green-50 dark:bg-green-900/20'
+                }`}>
+                  <h4 className="font-medium dark:text-white flex items-center gap-2">
+                    <AlertCircle className={`w-4 h-4 ${
+                      risk.risk === 'high' ? 'text-red-500' :
+                      risk.risk === 'medium' ? 'text-yellow-500' :
+                      'text-green-500'
+                    }`} />
+                    {risk.type}
+                  </h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                    {risk.description}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Crop Yield Trends */}
       <div className="grid lg:grid-cols-2 gap-6">
-        {/* Crop Yield Trends */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-xl font-semibold dark:text-white">Crop Yield Trends</h3>
             <div className="flex items-center gap-2">
-              <button className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+              <button
+                className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                title="Filter"
+              >
                 <Filter className="w-4 h-4" />
               </button>
-              <button className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+              <button
+                className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                title="Expand"
+              >
                 <ChevronDown className="w-4 h-4" />
               </button>
             </div>
@@ -337,49 +533,225 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Task Modal */}
+      {/* Enhanced Task Modal */}
       {showTaskModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-2xl font-bold dark:text-white">
-                  {selectedTask ? 'Edit Task' : 'New Task'}
-                </h2>
-                <button
-                  onClick={() => setShowTaskModal(false)}
-                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                >
-                  <XCircle className="w-6 h-6" />
-                </button>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 w-full max-w-md">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-semibold dark:text-white">
+                {selectedTask ? 'Edit Task' : 'New Task'}
+              </h3>
+              <button
+                onClick={() => setShowTaskModal(false)}
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              >
+                <XCircle className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Title
+                </label>
+                <input
+                  type="text"
+                  className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  placeholder="Task title"
+                  value={selectedTask?.title || newTask.title}
+                  onChange={(e) => selectedTask 
+                    ? setSelectedTask({...selectedTask, title: e.target.value})
+                    : setNewTask({...newTask, title: e.target.value})}
+                />
               </div>
-              {/* Add your task form here */}
-              <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Description
+                </label>
+                <textarea
+                  className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  placeholder="Task description"
+                  rows={3}
+                  value={selectedTask?.description || newTask.description}
+                  onChange={(e) => selectedTask 
+                    ? setSelectedTask({...selectedTask, description: e.target.value})
+                    : setNewTask({...newTask, description: e.target.value})}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Title
+                    Due Date
                   </label>
                   <input
-                    type="text"
+                    type="date"
                     className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                    placeholder="Task title"
-                    value={selectedTask?.title || ''}
+                    value={selectedTask?.due || newTask.due}
+                    onChange={(e) => selectedTask 
+                      ? setSelectedTask({...selectedTask, due: e.target.value})
+                      : setNewTask({...newTask, due: e.target.value})}
                   />
                 </div>
-                {/* Add more form fields */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Priority
+                  </label>
+                  <select
+                    className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    value={selectedTask?.priority || newTask.priority}
+                    onChange={(e) => selectedTask 
+                      ? setSelectedTask({...selectedTask, priority: e.target.value as FarmingTask['priority']})
+                      : setNewTask({...newTask, priority: e.target.value as FarmingTask['priority']})}
+                  >
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                  </select>
+                </div>
               </div>
-              <div className="mt-6 flex justify-end gap-4">
+            </div>
+            <div className="mt-6 flex justify-end gap-4">
+              <button
+                onClick={() => setShowTaskModal(false)}
+                className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={selectedTask ? handleUpdateTask : handleAddTask}
+                className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors"
+              >
+                {selectedTask ? 'Update Task' : 'Create Task'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Crop Data Form Modal */}
+      {showDataForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 w-full max-w-md">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-semibold dark:text-white">Add Crop Data</h3>
+              <button
+                onClick={() => setShowDataForm(false)}
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              >
+                <XCircle className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Month
+                  </label>
+                  <input
+                    type="month"
+                    className="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    value={newCropData.month}
+                    onChange={(e) => setNewCropData({...newCropData, month: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Yield (tons)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    className={`w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white ${
+                      validationErrors.yield ? 'border-red-500' : ''
+                    }`}
+                    value={newCropData.yield || ''}
+                    onChange={(e) => handleNumberInput(e, 'yield')}
+                  />
+                  {validationErrors.yield && (
+                    <p className="text-red-500 text-sm mt-1">{validationErrors.yield}</p>
+                  )}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Target (tons)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    className={`w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white ${
+                      validationErrors.target ? 'border-red-500' : ''
+                    }`}
+                    value={newCropData.target || ''}
+                    onChange={(e) => handleNumberInput(e, 'target')}
+                  />
+                  {validationErrors.target && (
+                    <p className="text-red-500 text-sm mt-1">{validationErrors.target}</p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Rainfall (mm)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    className={`w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white ${
+                      validationErrors.rainfall ? 'border-red-500' : ''
+                    }`}
+                    value={newCropData.rainfall || ''}
+                    onChange={(e) => handleNumberInput(e, 'rainfall')}
+                  />
+                  {validationErrors.rainfall && (
+                    <p className="text-red-500 text-sm mt-1">{validationErrors.rainfall}</p>
+                  )}
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Temperature (°C)
+                </label>
+                <input
+                  type="number"
+                  step="0.1"
+                  className={`w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 dark:text-white ${
+                    validationErrors.temperature ? 'border-red-500' : ''
+                  }`}
+                  value={newCropData.temperature || ''}
+                  onChange={(e) => handleNumberInput(e, 'temperature')}
+                />
+                {validationErrors.temperature && (
+                  <p className="text-red-500 text-sm mt-1">{validationErrors.temperature}</p>
+                )}
+              </div>
+              <div className="flex justify-end gap-4 mt-6">
                 <button
-                  onClick={() => setShowTaskModal(false)}
+                  onClick={() => setShowDataForm(false)}
                   className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white"
                 >
                   Cancel
                 </button>
-                <button className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors">
-                  {selectedTask ? 'Update Task' : 'Create Task'}
+                <button
+                  onClick={handleSubmitCropData}
+                  disabled={isLoading}
+                  className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50"
+                >
+                  {isLoading ? 'Submitting...' : 'Submit Data'}
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Loading State */}
+      {isAnalyzing && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 flex items-center gap-4">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500"></div>
+            <p className="text-gray-700 dark:text-gray-200">Analyzing crop data...</p>
           </div>
         </div>
       )}

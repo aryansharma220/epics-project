@@ -2,9 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap, Circle } from 'react-leaflet';
 import { useStore } from '../store';
 import { useTranslation } from 'react-i18next';
-import { Plane as Plant, Thermometer, Droplets, Wind, AlertTriangle } from 'lucide-react';
+import { Plane as Plant, Thermometer, Droplets, Wind, AlertTriangle, Loader2 } from 'lucide-react';
 import type { CropData, SoilData } from '../types';
 import 'leaflet/dist/leaflet.css';
+import { getSoilData, getCropRecommendations, getWeatherData } from '../services/api';
 
 // Fix for default marker icons in Leaflet
 import L from 'leaflet';
@@ -25,7 +26,7 @@ function LocationMarker() {
   const map = useMap();
 
   useEffect(() => {
-    map.locate().on("locationfound", function (e) {
+    map.locate().on("locationfound", async function (e) {
       setLocation(e.latlng.lat, e.latlng.lng);
       map.flyTo(e.latlng, map.getZoom());
     });
@@ -45,69 +46,61 @@ function LocationMarker() {
   ) : null;
 }
 
-const cropRecommendations: CropData[] = [
-  {
-    name: "Rice",
-    suitability: 85,
-    recommendations: [
-      "Ideal planting season: June-July",
-      "Requires good irrigation",
-      "Best in clay-loam soil"
-    ],
-    growthPeriod: 120,
-    waterRequirement: "High (1300-1800mm)",
-    soilType: ["Clay", "Clay Loam"],
-    expectedYield: "4-6 tons/hectare",
-    pestRisks: ["Stem Borer", "Brown Plant Hopper"],
-    diseases: ["Blast", "Bacterial Leaf Blight"],
-    nutrients: {
-      nitrogen: "High",
-      phosphorus: "Medium",
-      potassium: "High"
-    }
-  },
-  {
-    name: "Wheat",
-    suitability: 75,
-    recommendations: [
-      "Plant in November-December",
-      "Moderate water requirement",
-      "Prefers well-drained soil"
-    ],
-    growthPeriod: 140,
-    waterRequirement: "Medium (450-650mm)",
-    soilType: ["Loam", "Sandy Loam"],
-    expectedYield: "3.5-4.5 tons/hectare",
-    pestRisks: ["Aphids", "Army Worm"],
-    diseases: ["Rust", "Powdery Mildew"],
-    nutrients: {
-      nitrogen: "Medium",
-      phosphorus: "High",
-      potassium: "Medium"
-    }
-  }
-];
-
-const soilData: SoilData = {
-  ph: 6.5,
-  nitrogen: "Medium (280 kg/ha)",
-  phosphorus: "High (45 kg/ha)",
-  potassium: "Medium (180 kg/ha)",
-  organicMatter: 2.8,
-  moisture: 35,
-  temperature: 24,
-  texture: "Clay Loam",
-  recommendations: [
-    "Add organic matter to improve soil structure",
-    "Monitor pH levels regularly",
-    "Consider nitrogen fixing cover crops"
-  ]
-};
-
 export default function CropMap() {
   const { t } = useTranslation();
   const { preferences } = useStore();
   const [selectedCrop, setSelectedCrop] = useState<CropData | null>(null);
+  const [soilData, setSoilData] = useState<SoilData | null>(null);
+  const [cropRecommendations, setCropRecommendations] = useState<CropData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        setLoading(true);
+        const { lat, lng } = preferences.location;
+        
+        // Fetch soil data
+        const soil = await getSoilData(lat, lng);
+        setSoilData(soil);
+
+        // Get crop recommendations based on soil data
+        const crops = await getCropRecommendations(lat, lng, soil);
+        setCropRecommendations(crops);
+
+        // Get weather data to enhance recommendations
+        const weather = await getWeatherData(lat, lng);
+        // Use weather data to adjust recommendations if needed
+        
+        setLoading(false);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'An error occurred');
+        setLoading(false);
+      }
+    }
+
+    if (preferences.location.lat && preferences.location.lng) {
+      fetchData();
+    }
+  }, [preferences.location]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-[600px]">
+        <Loader2 className="w-8 h-8 animate-spin text-green-500" />
+        <p className="ml-2 text-gray-600 dark:text-gray-300">Loading crop data...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4 rounded-lg">
+        <p className="text-red-700 dark:text-red-200">{error}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="grid md:grid-cols-3 gap-6">
@@ -211,41 +204,41 @@ export default function CropMap() {
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
                 <span className="text-sm text-gray-600 dark:text-gray-300">pH Level</span>
-                <p className="text-lg font-medium dark:text-white">{soilData.ph}</p>
+                <p className="text-lg font-medium dark:text-white">{soilData?.ph}</p>
               </div>
               <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
                 <span className="text-sm text-gray-600 dark:text-gray-300">Organic Matter</span>
-                <p className="text-lg font-medium dark:text-white">{soilData.organicMatter}%</p>
+                <p className="text-lg font-medium dark:text-white">{soilData?.organicMatter}%</p>
               </div>
               <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
                 <span className="text-sm text-gray-600 dark:text-gray-300">Moisture</span>
-                <p className="text-lg font-medium dark:text-white">{soilData.moisture}%</p>
+                <p className="text-lg font-medium dark:text-white">{soilData?.moisture}%</p>
               </div>
               <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
                 <span className="text-sm text-gray-600 dark:text-gray-300">Temperature</span>
-                <p className="text-lg font-medium dark:text-white">{soilData.temperature}°C</p>
+                <p className="text-lg font-medium dark:text-white">{soilData?.temperature}°C</p>
               </div>
             </div>
 
             <div className="space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-gray-600 dark:text-gray-300">Nitrogen</span>
-                <span className="font-medium dark:text-white">{soilData.nitrogen}</span>
+                <span className="font-medium dark:text-white">{soilData?.nitrogen}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-gray-600 dark:text-gray-300">Phosphorus</span>
-                <span className="font-medium dark:text-white">{soilData.phosphorus}</span>
+                <span className="font-medium dark:text-white">{soilData?.phosphorus}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-gray-600 dark:text-gray-300">Potassium</span>
-                <span className="font-medium dark:text-white">{soilData.potassium}</span>
+                <span className="font-medium dark:text-white">{soilData?.potassium}</span>
               </div>
             </div>
 
             <div className="mt-4">
               <h4 className="font-medium dark:text-white mb-2">Recommendations</h4>
               <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-300">
-                {soilData.recommendations.map((rec, index) => (
+                {soilData?.recommendations.map((rec, index) => (
                   <li key={index} className="flex items-start gap-2">
                     <span className="text-green-500">•</span>
                     {rec}

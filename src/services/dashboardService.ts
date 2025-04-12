@@ -1,5 +1,6 @@
 import { CropData, AnalysisResult, DashboardStats, CropAnalysis } from '../types/dashboard';
 import moment from 'moment';
+import i18next from 'i18next';
 
 interface WeatherCondition {
   temperature: number;
@@ -285,18 +286,17 @@ export const dashboardService = {
 
   async getAIInsights(cropData: CropData[]): Promise<string[]> {
     if (cropData.length < 2) {
-      return ["Insufficient data for meaningful insights. Please add more crop data."];
+      return [i18next.t('dashboard.insights.insufficientData')];
     }
 
     const insights: string[] = [];
     const recentData = cropData.slice(-3);
     
-    // Yield Analysis
     const yieldTrend = this.calculateTrend(recentData.map(d => d.yield));
     if (yieldTrend < 0) {
-      insights.push(`Yield showing declining trend of ${Math.abs(yieldTrend).toFixed(1)}% over the last 3 months. Consider reviewing farming practices.`);
+      insights.push(i18next.t('dashboard.insights.yieldTrends.declining', { value: Math.abs(yieldTrend).toFixed(1) }));
     } else if (yieldTrend > 10) {
-      insights.push(`Strong positive yield trend of ${yieldTrend.toFixed(1)}%. Current practices are showing good results.`);
+      insights.push(i18next.t('dashboard.insights.yieldTrends.positive', { value: yieldTrend.toFixed(1) }));
     }
 
     insights.push(this.analyzeRainfallEfficiency(recentData));
@@ -458,19 +458,19 @@ export const dashboardService = {
     const description = alert.description.toLowerCase();
     
     if (description.includes('rain') || description.includes('storm')) {
-      return "Ensure proper drainage systems are working and protect crops from potential water damage";
+      return i18next.t('dashboard.insights.weatherAlerts.rain');
     }
     if (description.includes('wind')) {
-      return "Secure any loose farming equipment and protect vulnerable crops from wind damage";
+      return i18next.t('dashboard.insights.weatherAlerts.wind');
     }
     if (description.includes('heat')) {
-      return "Increase irrigation frequency and consider providing shade for sensitive crops";
+      return i18next.t('dashboard.insights.weatherAlerts.heat');
     }
     if (description.includes('frost') || description.includes('freeze')) {
-      return "Protect crops from frost damage using appropriate frost protection methods";
+      return i18next.t('dashboard.insights.weatherAlerts.frost');
     }
     
-    return "Monitor conditions closely and take protective measures as needed";
+    return i18next.t('dashboard.insights.weatherAlerts.default');
   },
 
   getForecastRecommendations(forecast: { hourly?: { temp: number; humidity: number; weather: { main: string }[] }[] }): string[] {
@@ -486,11 +486,11 @@ export const dashboardService = {
       : 0;
 
     if (willRain) {
-      recommendations.push("Rain expected in next 24 hours: Plan field operations accordingly");
+      recommendations.push(i18next.t('dashboard.insights.forecast.rain'));
     }
     
     if (tempChange > 10) {
-      recommendations.push("Significant temperature variation expected: Monitor crop stress levels");
+      recommendations.push(i18next.t('dashboard.insights.forecast.tempChange'));
     }
 
     return recommendations;

@@ -119,6 +119,43 @@ const resources = {
             create: 'Create Task',
             update: 'Update Task'
           }
+        },
+        insights: {
+          insufficientData: 'Insufficient data for meaningful insights. Please add more crop data.',
+          yieldTrends: {
+            declining: 'Yield showing declining trend of {{value}}% over the last 3 months. Consider reviewing farming practices.',
+            positive: 'Strong positive yield trend of {{value}}%. Current practices are showing good results.'
+          },
+          rainfallEfficiency: {
+            low: 'Low rainfall utilization efficiency detected. Consider improving drainage or water management systems.',
+            good: 'Good rainfall utilization efficiency. Current water management practices are effective.',
+            moderate: 'Moderate rainfall utilization efficiency. Minor improvements to water management may be beneficial.'
+          },
+          seasonalPerformance: {
+            stable: 'Seasonal performance is stable compared to previous {{season}} (±{{value}}%).',
+            changed: '{{season}} performance is {{direction}} {{value}}% compared to previous season.'
+          },
+          targetAchievement: {
+            excellent: 'Excellent target achievement rate of {{value}}%. Keep maintaining current practices.',
+            good: 'Good target achievement rate of {{value}}%. Minor optimizations could help reach targets.',
+            needsImprovement: 'Target achievement rate of {{value}}% indicates room for improvement. Consider reviewing production strategies.'
+          },
+          temperatureImpact: {
+            none: 'No significant impact of temperature on yield detected.',
+            positive: 'Higher temperatures are correlating with better yields. Consider heat-tolerant crop varieties.',
+            negative: 'Lower temperatures are correlating with better yields. Consider cold-weather crops or protection measures.'
+          },
+          weatherAlerts: {
+            rain: 'Ensure proper drainage systems are working and protect crops from potential water damage',
+            wind: 'Secure any loose farming equipment and protect vulnerable crops from wind damage',
+            heat: 'Increase irrigation frequency and consider providing shade for sensitive crops',
+            frost: 'Protect crops from frost damage using appropriate frost protection methods',
+            default: 'Monitor conditions closely and take protective measures as needed'
+          },
+          forecast: {
+            rain: 'Rain expected in next 24 hours: Plan field operations accordingly',
+            tempChange: 'Significant temperature variation expected: Monitor crop stress levels'
+          }
         }
       },
       weather: {
@@ -267,6 +304,43 @@ const resources = {
             cancel: 'रद्द करें',
             create: 'कार्य बनाएं',
             update: 'कार्य अपडेट करें'
+          }
+        },
+        insights: {
+          insufficientData: 'सार्थक अंतर्दृष्टि के लिए अपर्याप्त डेटा। कृपया अधिक फसल डेटा जोड़ें।',
+          yieldTrends: {
+            declining: 'पिछले 3 महीनों में {{value}}% की गिरावट का रुझान। कृषि प्रथाओं की समीक्षा करें।',
+            positive: '{{value}}% का मजबूत सकारात्मक उपज रुझान। वर्तमान प्रथाएं अच्छे परिणाम दिखा रही हैं।'
+          },
+          rainfallEfficiency: {
+            low: 'कम वर्षा उपयोग दक्षता। जल निकासी या जल प्रबंधन प्रणालियों में सुधार पर विचार करें।',
+            good: 'अच्छी वर्षा उपयोग दक्षता। वर्तमान जल प्रबंधन प्रथाएं प्रभावी हैं।',
+            moderate: 'मध्यम वर्षा उपयोग दक्षता। जल प्रबंधन में मामूली सुधार लाभदायक हो सकते हैं।'
+          },
+          seasonalPerformance: {
+            stable: 'पिछले {{season}} की तुलना में मौसमी प्रदर्शन स्थिर है (±{{value}}%)।',
+            changed: '{{season}} का प्रदर्शन पिछले मौसम की तुलना में {{direction}} {{value}}% है।'
+          },
+          targetAchievement: {
+            excellent: '{{value}}% की उत्कृष्ट लक्ष्य प्राप्ति दर। वर्तमान प्रथाओं को बनाए रखें।',
+            good: '{{value}}% की अच्छी लक्ष्य प्राप्ति दर। लक्ष्यों तक पहुंचने के लिए मामूली अनुकूलन मदद कर सकते हैं।',
+            needsImprovement: '{{value}}% की लक्ष्य प्राप्ति दर सुधार की गुंजाइश दर्शाती है। उत्पादन रणनीतियों की समीक्षा करें।'
+          },
+          temperatureImpact: {
+            none: 'उपज पर तापमान का कोई महत्वपूर्ण प्रभाव नहीं पाया गया।',
+            positive: 'उच्च तापमान बेहतर उपज से सहसंबंधित है। गर्मी-सहनशील फसल किस्मों पर विचार करें।',
+            negative: 'कम तापमान बेहतर उपज से सहसंबंधित है। ठंडे मौसम की फसलों या सुरक्षा उपायों पर विचार करें।'
+          },
+          weatherAlerts: {
+            rain: 'जल निकासी प्रणालियों को सुचारू रखें और फसलों को संभावित जल क्षति से बचाएं',
+            wind: 'खुले कृषि उपकरणों को सुरक्षित करें और कमजोर फसलों को हवा से बचाएं',
+            heat: 'सिंचाई की आवृत्ति बढ़ाएं और संवेदनशील फसलों के लिए छाया प्रदान करें',
+            frost: 'पाला क्षति से फसलों की रक्षा के लिए उचित सुरक्षा विधियों का उपयोग करें',
+            default: 'स्थितियों की बारीकी से निगरानी करें और आवश्यक सुरक्षात्मक उपाय करें'
+          },
+          forecast: {
+            rain: 'अगले 24 घंटों में वर्षा की संभावना: खेत के कार्यों की योजना तदनुसार बनाएं',
+            tempChange: 'महत्वपूर्ण तापमान परिवर्तन की संभावना: फसल तनाव स्तरों की निगरानी करें'
           }
         }
       },

@@ -1,7 +1,12 @@
 import { CropData, AnalysisResult, DashboardStats, CropAnalysis } from '../types/dashboard';
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import moment from 'moment';
 
-const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GOOGLE_AI_KEY);
+interface WeatherCondition {
+  temperature: number;
+  humidity: number;
+  windSpeed: number;
+  condition?: string;
+}
 
 export const dashboardService = {
   async uploadCropData(file: File): Promise<CropData[]> {
@@ -95,7 +100,7 @@ export const dashboardService = {
     const seasonalTrends = this.calculateSeasonalTrends(data);
     const efficiencyMetrics = this.calculateEfficiencyMetrics(data);
     const riskFactors = this.assessRiskFactors(data);
-    const suggestions = this.generateSuggestions(data, efficiencyMetrics, riskFactors);
+    const suggestions = this.generateSuggestions(efficiencyMetrics, riskFactors);
 
     return {
       seasonalTrends,
@@ -148,11 +153,11 @@ export const dashboardService = {
   },
 
   assessRiskFactors(data: CropData[]) {
-    const risks = [];
+    const risks: CropAnalysis['riskFactors'] = [];
     if (data.length < 2) {
       return [{
         type: 'Insufficient Data',
-        risk: 'medium',
+        risk: 'medium' as const,
         description: 'Need more data points for accurate risk assessment'
       }];
     }
@@ -164,7 +169,7 @@ export const dashboardService = {
     const rainfallVariability = this.calculateVariability(rainfallValues);
     risks.push({
       type: 'Rainfall Variability',
-      risk: rainfallVariability > 20 ? 'high' : rainfallVariability > 10 ? 'medium' : 'low',
+      risk: rainfallVariability > 20 ? 'high' as const : rainfallVariability > 10 ? 'medium' as const : 'low' as const,
       description: `Rainfall variation is ${rainfallVariability.toFixed(1)}%`
     });
 
@@ -173,7 +178,7 @@ export const dashboardService = {
     const yieldTrend = this.calculateTrend(yieldValues);
     risks.push({
       type: 'Yield Stability',
-      risk: yieldTrend < 0 ? 'high' : yieldTrend < 5 ? 'medium' : 'low',
+      risk: yieldTrend < 0 ? 'high' as const : yieldTrend < 5 ? 'medium' as const : 'low' as const,
       description: `Yield trend is ${yieldTrend > 0 ? 'positive' : 'negative'} at ${Math.abs(yieldTrend).toFixed(1)}%`
     });
 
@@ -182,15 +187,15 @@ export const dashboardService = {
     const avgTemp = tempValues.reduce((sum, v) => sum + v, 0) / tempValues.length;
     risks.push({
       type: 'Temperature Risk',
-      risk: avgTemp > 32 ? 'high' : avgTemp > 28 ? 'medium' : 'low',
+      risk: avgTemp > 32 ? 'high' as const : avgTemp > 28 ? 'medium' as const : 'low' as const,
       description: `Average temperature is ${avgTemp.toFixed(1)}°C`
     });
 
     return risks;
   },
 
-  generateSuggestions(data: CropData[], metrics: CropAnalysis['efficiencyMetrics'], risks: CropAnalysis['riskFactors']) {
-    const suggestions = [];
+  generateSuggestions(metrics: CropAnalysis['efficiencyMetrics'], risks: CropAnalysis['riskFactors']): CropAnalysis['suggestions'] {
+    const suggestions: CropAnalysis['suggestions'] = [];
 
     if (metrics.yieldEfficiency < 90) {
       suggestions.push({
@@ -211,14 +216,14 @@ export const dashboardService = {
     }
 
     const highRisks = risks.filter(r => r.risk === 'high');
-    if (highRisks.length > 0) {
+    highRisks.forEach(risk => {
       suggestions.push({
         category: 'Risk Management',
-        action: `Address ${highRisks[0].type.toLowerCase()} issues`,
-        impact: 'Mitigate crop failure risks',
+        action: `Address ${risk.type.toLowerCase()}: ${risk.description}`,
+        impact: 'Reduce risk exposure',
         priority: 'high' as const
       });
-    }
+    });
 
     return suggestions;
   },
@@ -279,100 +284,216 @@ export const dashboardService = {
   },
 
   async getAIInsights(cropData: CropData[]): Promise<string[]> {
-    if (cropData.length === 0) {
-      return ["Insufficient data to generate AI insights. Please add crop data."];
+    if (cropData.length < 2) {
+      return ["Insufficient data for meaningful insights. Please add more crop data."];
     }
 
-    try {
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-      
-      const prompt = `
-        As an agricultural AI advisor, analyze this crop data and provide 3-5 insights and specific actionable recommendations. 
-        Format your response as bullet points, keeping each point brief (max 2 sentences).
-        
-        Crop Data (most recent 3 months):
-        ${JSON.stringify(cropData.slice(-3))}
-        
-        Current efficiency metrics:
-        - Yield Efficiency: ${this.calculateEfficiencyMetrics(cropData).yieldEfficiency.toFixed(1)}%
-        - Water Usage Efficiency: ${this.calculateEfficiencyMetrics(cropData).waterUsageEfficiency.toFixed(2)}
-        
-        Risk factors:
-        ${JSON.stringify(this.assessRiskFactors(cropData))}
-        
-        Focus on practical insights about:
-        1. Yield optimization
-        2. Resource efficiency
-        3. Risk mitigation strategies
-        4. Weather adaptation
-        5. Seasonal planning
-      `;
-
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      const text = response.text();
-      
-      // Process the response to get clean bullet points
-      return text
-        .split(/[•\-*]/)
-        .map(line => line.trim())
-        .filter(line => line.length > 0)
-        .slice(0, 5);
-    } catch (error) {
-      console.error("Error generating AI insights:", error);
-      return [
-        "Based on your yield trend, consider adjusting fertilizer application timing for better nutrient absorption.",
-        "Your water usage efficiency could be improved by 15-20% with optimized irrigation scheduling.",
-        "Temperature variations suggest implementing shade structures during peak summer months.",
-        "Consider crop rotation in the next season to improve soil health and reduce pest pressure."
-      ];
+    const insights: string[] = [];
+    const recentData = cropData.slice(-3);
+    
+    // Yield Analysis
+    const yieldTrend = this.calculateTrend(recentData.map(d => d.yield));
+    if (yieldTrend < 0) {
+      insights.push(`Yield showing declining trend of ${Math.abs(yieldTrend).toFixed(1)}% over the last 3 months. Consider reviewing farming practices.`);
+    } else if (yieldTrend > 10) {
+      insights.push(`Strong positive yield trend of ${yieldTrend.toFixed(1)}%. Current practices are showing good results.`);
     }
+
+    insights.push(this.analyzeRainfallEfficiency(recentData));
+
+    const seasonalInsight = this.analyzeSeasonalPerformance(cropData);
+    if (seasonalInsight) insights.push(seasonalInsight);
+
+    insights.push(this.analyzeTargetAchievement(recentData));
+
+    const temperatureImpact = this.analyzeTemperatureImpact(recentData);
+    if (temperatureImpact) insights.push(temperatureImpact);
+
+    return insights;
   },
 
-  async getWeatherAdaptedRecommendations(cropData: CropData[], weatherData: any): Promise<string[]> {
-    try {
-      if (!weatherData || !cropData.length) {
-        return ["Insufficient data for weather-adapted recommendations."];
-      }
-
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-      
-      const prompt = `
-        As an agricultural AI advisor, provide 3-4 specific recommendations based on the current weather forecast
-        and crop data. Format your response as concise bullet points.
-        
-        Current weather conditions:
-        ${JSON.stringify(weatherData.current)}
-        
-        Weather forecast:
-        ${JSON.stringify(weatherData.forecast ? weatherData.forecast.slice(0, 2) : [])}
-        
-        Recent crop data:
-        ${JSON.stringify(cropData.slice(-1)[0])}
-        
-        Provide recommendations that:
-        1. Address immediate actions based on forecast
-        2. Optimize resource usage (water, fertilizer)
-        3. Protect crops from potential weather risks
-        4. Adjust planting or harvesting schedules if needed
-      `;
-
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      const text = response.text();
-      
-      return text
-        .split(/[•\-*]/)
-        .map(line => line.trim())
-        .filter(line => line.length > 0)
-        .slice(0, 4);
-    } catch (error) {
-      console.error("Error generating weather recommendations:", error);
-      return [
-        "Adjust irrigation schedule based on the upcoming weather forecast.",
-        "Consider protective measures for crops due to expected weather conditions.",
-        "Optimize fertilizer application timing for better nutrient absorption under current weather patterns."
-      ];
+  async getWeatherAdaptedRecommendations(cropData: CropData[], weather: { current: WeatherCondition; alerts?: any[]; forecast?: any }): Promise<string[]> {
+    if (!weather?.current) {
+      return ["Unable to generate weather-specific recommendations. Weather data unavailable."];
     }
+
+    const recommendations: string[] = [];
+    const { temperature, humidity } = weather.current;
+    const hasAlerts = weather.alerts && weather.alerts.length > 0;
+
+    if (temperature > 30) {
+      recommendations.push("High temperature alert: Consider increasing irrigation frequency");
+      recommendations.push("Monitor for heat stress in crops");
+    } else if (temperature < 10) {
+      recommendations.push("Low temperature alert: Protect sensitive crops from frost damage");
+      recommendations.push("Consider delaying new plantings until temperatures rise");
+    }
+
+    if (humidity > 80) {
+      recommendations.push("High humidity detected: Monitor for fungal disease risk");
+      recommendations.push("Consider applying preventive fungicides");
+    } else if (humidity < 40) {
+      recommendations.push("Low humidity alert: Increase irrigation to prevent water stress");
+    }
+
+    if (hasAlerts && weather.alerts) {
+      weather.alerts.forEach(alert => {
+        recommendations.push(`Weather alert adaptation: ${this.getAlertRecommendation(alert)}`);
+      });
+    }
+
+    if (weather.forecast) {
+      recommendations.push(...this.getForecastRecommendations(weather.forecast));
+    }
+
+    // Add crop-specific recommendations
+    if (cropData.length > 0) {
+      const lastCropData = cropData[cropData.length - 1];
+      if (lastCropData.yield < lastCropData.target) {
+        recommendations.push("Current yield is below target. Consider adjusting farming practices based on weather conditions.");
+      }
+    }
+
+    return recommendations;
+  },
+
+  analyzeRainfallEfficiency(data: CropData[]): string {
+    const rainfallYieldRatio = data.map(d => d.yield / (d.rainfall || 1));
+    const avgRatio = rainfallYieldRatio.reduce((sum, r) => sum + r, 0) / rainfallYieldRatio.length;
+    
+    if (avgRatio < 0.05) {
+      return "Low rainfall utilization efficiency detected. Consider improving drainage or water management systems.";
+    } else if (avgRatio > 0.1) {
+      return "Good rainfall utilization efficiency. Current water management practices are effective.";
+    }
+    return "Moderate rainfall utilization efficiency. Minor improvements to water management may be beneficial.";
+  },
+
+  analyzeSeasonalPerformance(data: CropData[]): string | null {
+    const currentMonth = moment().month();
+    const season = this.getCurrentSeason(currentMonth);
+    const seasonalData = data.filter(d => {
+      const month = moment(d.month).month();
+      return this.getCurrentSeason(month) === season;
+    });
+
+    if (seasonalData.length < 2) return null;
+
+    const avgYield = seasonalData.reduce((sum, d) => sum + d.yield, 0) / seasonalData.length;
+    const previousSeasonAvg = this.getPreviousSeasonAverage(data, season);
+
+    if (previousSeasonAvg === null) return null;
+
+    const change = ((avgYield - previousSeasonAvg) / previousSeasonAvg) * 100;
+    
+    if (Math.abs(change) < 5) {
+      return `Seasonal performance is stable compared to previous ${season} (±${Math.abs(change).toFixed(1)}%).`;
+    }
+    return `${season} performance is ${change > 0 ? 'up' : 'down'} ${Math.abs(change).toFixed(1)}% compared to previous season.`;
+  },
+
+  getCurrentSeason(month: number): string {
+    if (month >= 2 && month <= 4) return 'Spring';
+    if (month >= 5 && month <= 7) return 'Summer';
+    if (month >= 8 && month <= 10) return 'Fall';
+    return 'Winter';
+  },
+
+  getPreviousSeasonAverage(data: CropData[], currentSeason: string): number | null {
+    const previousYear = moment().subtract(1, 'year');
+    const previousSeasonData = data.filter(d => {
+      const date = moment(d.month);
+      const season = this.getCurrentSeason(date.month());
+      return season === currentSeason && date.year() === previousYear.year();
+    });
+
+    if (previousSeasonData.length === 0) return null;
+    return previousSeasonData.reduce((sum, d) => sum + d.yield, 0) / previousSeasonData.length;
+  },
+
+  analyzeTargetAchievement(data: CropData[]): string {
+    const achievements = data.map(d => (d.yield / d.target) * 100);
+    const avgAchievement = achievements.reduce((sum, a) => sum + a, 0) / achievements.length;
+    
+    if (avgAchievement >= 95) {
+      return `Excellent target achievement rate of ${avgAchievement.toFixed(1)}%. Keep maintaining current practices.`;
+    } else if (avgAchievement >= 80) {
+      return `Good target achievement rate of ${avgAchievement.toFixed(1)}%. Minor optimizations could help reach targets.`;
+    }
+    return `Target achievement rate of ${avgAchievement.toFixed(1)}% indicates room for improvement. Consider reviewing production strategies.`;
+  },
+
+  analyzeTemperatureImpact(data: CropData[]): string | null {
+    if (!data.some(d => d.temperature !== undefined)) return null;
+
+    const correlation = this.calculateCorrelation(
+      data.map(d => d.temperature || 0),
+      data.map(d => d.yield)
+    );
+
+    if (Math.abs(correlation) < 0.3) {
+      return "No significant impact of temperature on yield detected.";
+    }
+    
+    return correlation > 0
+      ? "Higher temperatures are correlating with better yields. Consider heat-tolerant crop varieties."
+      : "Lower temperatures are correlating with better yields. Consider cold-weather crops or protection measures.";
+  },
+
+  calculateCorrelation(x: number[], y: number[]): number {
+    const n = x.length;
+    const sumX = x.reduce((a, b) => a + b);
+    const sumY = y.reduce((a, b) => a + b);
+    const sumXY = x.reduce((sum, xi, i) => sum + xi * y[i], 0);
+    const sumXX = x.reduce((sum, xi) => sum + xi * xi, 0);
+    const sumYY = y.reduce((sum, yi) => sum + yi * yi, 0);
+
+    const numerator = n * sumXY - sumX * sumY;
+    const denominator = Math.sqrt((n * sumXX - sumX * sumX) * (n * sumYY - sumY * sumY));
+    
+    return denominator === 0 ? 0 : numerator / denominator;
+  },
+
+  getAlertRecommendation(alert: { description: string }): string {
+    const description = alert.description.toLowerCase();
+    
+    if (description.includes('rain') || description.includes('storm')) {
+      return "Ensure proper drainage systems are working and protect crops from potential water damage";
+    }
+    if (description.includes('wind')) {
+      return "Secure any loose farming equipment and protect vulnerable crops from wind damage";
+    }
+    if (description.includes('heat')) {
+      return "Increase irrigation frequency and consider providing shade for sensitive crops";
+    }
+    if (description.includes('frost') || description.includes('freeze')) {
+      return "Protect crops from frost damage using appropriate frost protection methods";
+    }
+    
+    return "Monitor conditions closely and take protective measures as needed";
+  },
+
+  getForecastRecommendations(forecast: { hourly?: { temp: number; humidity: number; weather: { main: string }[] }[] }): string[] {
+    const recommendations: string[] = [];
+    const next24Hours = forecast.hourly?.slice(0, 24) || [];
+    
+    const willRain = next24Hours.some(hour => 
+      hour.weather[0].main.toLowerCase().includes('rain')
+    );
+    
+    const tempChange = next24Hours.length > 0
+      ? Math.max(...next24Hours.map(h => h.temp)) - Math.min(...next24Hours.map(h => h.temp))
+      : 0;
+
+    if (willRain) {
+      recommendations.push("Rain expected in next 24 hours: Plan field operations accordingly");
+    }
+    
+    if (tempChange > 10) {
+      recommendations.push("Significant temperature variation expected: Monitor crop stress levels");
+    }
+
+    return recommendations;
   }
 };
+

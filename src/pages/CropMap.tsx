@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap, Circle } from 'react-leaflet';
 import { useStore } from '../store';
 import { useTranslation } from 'react-i18next';
-import { Plane as Plant, Thermometer, Droplets, Wind, AlertTriangle, Loader2 } from 'lucide-react';
+import { Plane as Plant, Thermometer, Loader2 } from 'lucide-react';
 import type { CropData, SoilData } from '../types';
 import 'leaflet/dist/leaflet.css';
 import { getSoilData, getCropRecommendations, getWeatherData } from '../services/api';
@@ -24,13 +24,17 @@ L.Marker.prototype.options.icon = DefaultIcon;
 function LocationMarker() {
   const { preferences, setLocation } = useStore();
   const map = useMap();
+  const [locationFound, setLocationFound] = useState(false);
 
   useEffect(() => {
-    map.locate().on("locationfound", async function (e) {
-      setLocation(e.latlng.lat, e.latlng.lng);
-      map.flyTo(e.latlng, map.getZoom());
-    });
-  }, [map]);
+    if (!locationFound) {
+      map.locate().on("locationfound", function (e) {
+        setLocation(e.latlng.lat, e.latlng.lng);
+        map.flyTo(e.latlng, map.getZoom());
+        setLocationFound(true);
+      });
+    }
+  }, [map, setLocation, locationFound]);
 
   return preferences.location ? (
     <>
@@ -54,11 +58,19 @@ export default function CropMap() {
   const [cropRecommendations, setCropRecommendations] = useState<CropData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [weatherData, setWeatherData] = useState<any>(null);
+  const [weatherRecommendations, setWeatherRecommendations] = useState<string[]>([]);
+  // Add this flag to prevent repeated data fetching
+  const [dataLoaded, setDataLoaded] = useState(false);
 
   useEffect(() => {
     async function fetchData() {
       try {
-        setLoading(true);
+        // Only set loading to true if not already loaded
+        if (!dataLoaded) {
+          setLoading(true);
+        }
+        
         const { lat, lng } = preferences.location;
         
         // Fetch soil data
@@ -71,19 +83,62 @@ export default function CropMap() {
 
         // Get weather data to enhance recommendations
         const weather = await getWeatherData(lat, lng);
-        // Use weather data to adjust recommendations if needed
+        setWeatherData(weather);
+        
+        // Generate weather-based recommendations
+        if (weather && crops.length > 0) {
+          const weatherBasedRecommendations = generateWeatherRecommendations(weather, crops[0]);
+          setWeatherRecommendations(weatherBasedRecommendations);
+        }
         
         setLoading(false);
+        setDataLoaded(true);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An error occurred');
         setLoading(false);
       }
     }
 
-    if (preferences.location.lat && preferences.location.lng) {
+    if (preferences.location.lat && preferences.location.lng && !dataLoaded) {
       fetchData();
     }
-  }, [preferences.location]);
+  }, [preferences.location, dataLoaded]);
+
+  // Generate weather-specific recommendations based on current conditions
+  const generateWeatherRecommendations = (weather: any, crop: CropData): string[] => {
+    const recommendations: string[] = [];
+    
+    // Temperature based recommendations
+    if (weather.current && weather.current.temperature > 30) {
+      recommendations.push(`High temperatures detected. Increase irrigation frequency for ${crop.name}.`);
+    } else if (weather.current && weather.current.temperature < 15) {
+      recommendations.push(`Cool temperatures detected. Consider protective measures for ${crop.name}.`);
+    }
+    
+    // Rain forecast recommendations
+    const rainPredicted = weather.forecast && weather.forecast.some((day: any) => 
+      day.precipitation > 50 || day.condition.toLowerCase().includes('rain')
+    );
+    
+    if (rainPredicted) {
+      recommendations.push(`Rain expected in the coming days. Delay fertilizer application.`);
+    } else if (weather.current && weather.current.humidity < 40) {
+      recommendations.push(`Low humidity detected. Consider increasing irrigation.`);
+    }
+    
+    // Wind based recommendations
+    const highWind = weather.forecast && weather.forecast.some((day: any) => day.windSpeed > 25);
+    if (highWind) {
+      recommendations.push(`Strong winds expected. Secure young plants and delay pesticide spraying.`);
+    }
+    
+    // If no specific recommendations, add a generic one
+    if (recommendations.length === 0) {
+      recommendations.push(`Current weather conditions are favorable for ${crop.name} growth.`);
+    }
+    
+    return recommendations;
+  };
 
   if (loading) {
     return (
@@ -167,6 +222,47 @@ export default function CropMap() {
       </div>
 
       <div className="space-y-6">
+        {weatherData && (
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+            <h3 className="text-xl font-semibold mb-4 dark:text-white flex items-center gap-2">
+              <Thermometer className="w-5 h-5" />
+              Weather Conditions
+            </h3>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600 dark:text-gray-300">Temperature</span>
+                <span className="font-medium dark:text-white">{weatherData.current.temperature}°C</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600 dark:text-gray-300">Humidity</span>
+                <span className="font-medium dark:text-white">{weatherData.current.humidity}%</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600 dark:text-gray-300">Wind Speed</span>
+                <span className="font-medium dark:text-white">{weatherData.current.windSpeed} km/h</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600 dark:text-gray-300">Condition</span>
+                <span className="font-medium dark:text-white">{weatherData.current.condition}</span>
+              </div>
+              
+              {weatherRecommendations.length > 0 && (
+                <div className="mt-4">
+                  <h4 className="font-medium dark:text-white mb-2">Weather Recommendations</h4>
+                  <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-300">
+                    {weatherRecommendations.map((rec, index) => (
+                      <li key={index} className="flex items-start gap-2">
+                        <span className="text-blue-500">•</span>
+                        {rec}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
           <h3 className="text-xl font-semibold mb-4 dark:text-white flex items-center gap-2">
             <Plant className="w-5 h-5" />

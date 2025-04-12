@@ -37,6 +37,7 @@ export default function Navbar() {
               <Link to="/weather" className="hover:text-green-500">{t('nav.weather')}</Link>
               <Link to="/marketplace" className="hover:text-green-500">{t('nav.marketplace')}</Link>
               <Link to="/dashboard" className="hover:text-green-500">{t('nav.dashboard')}</Link>
+              <Link to="/mspRates" className="hover:text-green-500">{t('nav.mspRates')}</Link>
 
             </div>
           </div>

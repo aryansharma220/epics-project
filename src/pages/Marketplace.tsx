@@ -104,33 +104,121 @@ export default function Marketplace() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      {/* Add search and sort controls */}
-      <div className="flex items-center gap-4 mb-8">
-        <div className="flex-1">
+      {/* Marketplace Header */}
+      <div className="flex flex-col md:flex-row justify-between items-center mb-6">
+        <h1 className="text-2xl md:text-3xl font-bold mb-4 md:mb-0">Agricultural Marketplace</h1>
+        <div className="flex items-center gap-3">
+          <button className="flex items-center gap-2 bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600">
+            <Package className="w-5 h-5" /> Add Listing
+          </button>
+        </div>
+      </div>
+
+      {/* Stats Overview */}
+      {stats && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow flex items-center gap-4">
+            <div className="bg-blue-100 p-3 rounded-full">
+              <Package className="w-6 h-6 text-blue-600" />
+            </div>
+            <div>
+              <p className="text-gray-500 text-sm">Total Products</p>
+              <p className="text-2xl font-bold">{stats.totalProducts}</p>
+            </div>
+          </div>
+          <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow flex items-center gap-4">
+            <div className="bg-green-100 p-3 rounded-full">
+              <TrendingUp className="w-6 h-6 text-green-600" />
+            </div>
+            <div>
+              <p className="text-gray-500 text-sm">Active Listings</p>
+              <p className="text-2xl font-bold">{stats.activeListings}</p>
+            </div>
+          </div>
+          <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow flex items-center gap-4">
+            <div className="bg-yellow-100 p-3 rounded-full">
+              <Star className="w-6 h-6 text-yellow-600" />
+            </div>
+            <div>
+              <p className="text-gray-500 text-sm">Avg. Price</p>
+              <p className="text-2xl font-bold">₹{stats.averagePrice.toFixed(2)}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Search, Sort and View Controls */}
+      <div className="flex flex-col md:flex-row items-center gap-4 mb-4">
+        <div className="flex-1 w-full relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
           <input
             type="text"
             placeholder="Search products..."
-            className="w-full p-2 border rounded"
+            className="w-full p-2 pl-10 border rounded-lg"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        <select
-          className="p-2 border rounded"
-          value={sortBy}
-          onChange={(e) => setSortBy(e.target.value)}
+        <div className="flex items-center gap-2">
+          <select
+            className="p-2 border rounded-lg"
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+          >
+            <option value="">Sort by</option>
+            <option value="price-asc">Price: Low to High</option>
+            <option value="price-desc">Price: High to Low</option>
+            <option value="rating">Rating</option>
+          </select>
+          <div className="flex border rounded-lg overflow-hidden">
+            <button 
+              onClick={() => setViewMode('grid')}
+              className={`p-2 ${viewMode === 'grid' ? 'bg-blue-500 text-white' : 'bg-white'}`}
+            >
+              <Grid className="w-5 h-5" />
+            </button>
+            <button 
+              onClick={() => setViewMode('list')}
+              className={`p-2 ${viewMode === 'list' ? 'bg-blue-500 text-white' : 'bg-white'}`}
+            >
+              <List className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Quick Category Filters */}
+      <div className="flex flex-wrap gap-2 mb-6">
+        <button 
+          onClick={() => setFilters({...filters, category: ''})}
+          className={`px-3 py-1 rounded-full text-sm ${filters.category === '' ? 'bg-blue-500 text-white' : 'bg-gray-100'}`}
         >
-          <option value="">Sort by</option>
-          <option value="price-asc">Price: Low to High</option>
-          <option value="price-desc">Price: High to Low</option>
-          <option value="rating">Rating</option>
-        </select>
+          All Categories
+        </button>
+        <button 
+          onClick={() => setFilters({...filters, category: 'seeds'})}
+          className={`px-3 py-1 rounded-full text-sm ${filters.category === 'seeds' ? 'bg-blue-500 text-white' : 'bg-gray-100'}`}
+        >
+          Seeds & Plants
+        </button>
+        <button 
+          onClick={() => setFilters({...filters, category: 'fertilizers'})}
+          className={`px-3 py-1 rounded-full text-sm ${filters.category === 'fertilizers' ? 'bg-blue-500 text-white' : 'bg-gray-100'}`}
+        >
+          Fertilizers
+        </button>
+        <button 
+          onClick={() => setFilters({...filters, category: 'equipment'})}
+          className={`px-3 py-1 rounded-full text-sm ${filters.category === 'equipment' ? 'bg-blue-500 text-white' : 'bg-gray-100'}`}
+        >
+          Equipment
+        </button>
       </div>
 
       {/* Main content */}
-      <div className="flex gap-6">
+      <div className="flex flex-col md:flex-row gap-6">
         {/* Filters */}
-        <div className="w-64">
+        <div className="w-full md:w-64">
           <FilterPanel
             filters={filters}
             onFilterChange={setFilters}
@@ -140,11 +228,21 @@ export default function Marketplace() {
 
         {/* Products grid */}
         <div className="flex-1">
-          <div className={`grid ${
-            viewMode === 'grid' 
-              ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' 
-              : 'grid-cols-1'
-          } gap-6`}>
+          {loading ? (
+            <div className="flex justify-center items-center h-64">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+            </div>
+          ) : products.length === 0 ? (
+            <div className="bg-white p-8 rounded-lg shadow text-center">
+              <p className="text-xl font-medium mb-4">No products found</p>
+              <p className="text-gray-500">Try adjusting your filters or search query</p>
+            </div>
+          ) : (
+            <div className={`grid ${
+              viewMode === 'grid' 
+                ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' 
+                : 'grid-cols-1'
+            } gap-6`}>
             {paginatedProducts.map(product => (
               <ProductCard
                 key={product.id}
@@ -155,6 +253,7 @@ export default function Marketplace() {
               />
             ))}
           </div>
+          )}
 
           {/* Pagination */}
           <div className="flex justify-center gap-2 mt-8">

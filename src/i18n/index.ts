@@ -9,7 +9,8 @@ const resources = {
         map: 'Crop Map',
         weather: 'Weather',
         marketplace: 'Marketplace',
-        dashboard: 'Dashboard'
+        dashboard: 'Dashboard',
+        mspRates: 'MSP Rates'
       },
       home: {
         welcome: 'Welcome to FarmAssist',
@@ -157,7 +158,8 @@ const resources = {
         map: 'फसल मानचित्र',
         weather: 'मौसम',
         marketplace: 'बाज़ार',
-        dashboard: 'डैशबोर्ड'
+        dashboard: 'डैशबोर्ड',
+        mspRates: 'एमएसपी दरें'
       },
       home: {
         welcome: 'फार्मअसिस्ट में आपका स्वागत है',

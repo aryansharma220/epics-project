@@ -156,9 +156,9 @@ export default function Weather() {
                 <h3 className="text-xl font-semibold mb-6 dark:text-white">{t('weather.forecast.hourly')}</h3>
                 <div className="grid grid-cols-5 gap-4">
                   {weatherData.hourly.map((hour: any, index: number) => (
-                    <div key={index} className="text-center">
+                    <div key={index} className="text-center flex flex-col justify-center items-center border  rounded-md p-2 shadow-lg">
                       <p className="text-sm font-medium dark:text-white mb-2">{hour.time}</p>
-                      {getWeatherIcon(hour.condition)}
+                      <p className="text-sm font-medium dark:text-white mb-2">{getWeatherIcon(hour.condition)}</p>
                       <p className="text-lg font-bold dark:text-white">{hour.temp}°</p>
                       <p className="text-sm text-gray-500 dark:text-gray-400">{hour.condition}</p>
                     </div>
@@ -170,7 +170,7 @@ export default function Weather() {
                 <h3 className="text-xl font-semibold mb-6 dark:text-white">{t('weather.forecast.daily')}</h3>
                 <div className="space-y-4">
                   {weatherData.forecast.map((day: any, index: number) => (
-                    <div key={index} className="grid grid-cols-4 items-center bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+                    <div key={index} className="grid grid-cols-4 items-center bg-gray-50 dark:bg-gray-700 p-4 rounded-lg shadow-md">
                       <div>
                         <p className="font-medium dark:text-white">{day.day}</p>
                         <p className="text-sm text-gray-500 dark:text-gray-400">{day.condition}</p>

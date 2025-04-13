@@ -1,7 +1,10 @@
 import { CropData, AnalysisResult } from '../types/dashboard';
 import moment from 'moment';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
+
+// Add the autotable plugin to jsPDF
+(jsPDF as any).API.autoTable = autoTable;
 
 export function exportToCSV(data: CropData[]): void {
   const headers = ['Month', 'Yield (tons)', 'Target (tons)', 'Rainfall (mm)', 'Temperature (°C)'];
@@ -83,7 +86,7 @@ export function generatePDFReport(cropData: CropData[], analysis: AnalysisResult
     ['Average Rainfall:', `${analysis.averageRainfall.toFixed(1)} mm`]
   ];
   
-  doc.autoTable({
+  autoTable(doc, {
     startY: yPos,
     head: [],
     body: summaryData,
@@ -103,7 +106,7 @@ export function generatePDFReport(cropData: CropData[], analysis: AnalysisResult
     ['Target Achievement:', `${analysis.cropAnalysis.efficiencyMetrics.targetAchievement.toFixed(1)}%`]
   ];
   
-  doc.autoTable({
+  autoTable(doc, {
     startY: yPos,
     head: [],
     body: efficiencyData,
@@ -123,7 +126,7 @@ export function generatePDFReport(cropData: CropData[], analysis: AnalysisResult
     risk.description
   ]);
   
-  doc.autoTable({
+  autoTable(doc, {
     startY: yPos,
     head: [['Type', 'Risk Level', 'Description']],
     body: riskData,
@@ -139,7 +142,7 @@ export function generatePDFReport(cropData: CropData[], analysis: AnalysisResult
   yPos += 10;
   const recommendationsData = analysis.recommendedActions.map(action => [action]);
   
-  doc.autoTable({
+  autoTable(doc, {
     startY: yPos,
     head: [['Action Items']],
     body: recommendationsData,
@@ -160,7 +163,7 @@ export function generatePDFReport(cropData: CropData[], analysis: AnalysisResult
     data.temperature.toFixed(1)
   ]);
   
-  doc.autoTable({
+  autoTable(doc, {
     startY: 30,
     head: [['Month', 'Yield (tons)', 'Target (tons)', 'Rainfall (mm)', 'Temperature (°C)']],
     body: cropTableData,
@@ -199,7 +202,7 @@ export function exportWeatherReport(weatherData: any, recommendations: string[])
     ['Conditions:', weatherData.current.condition || 'N/A']
   ];
   
-  doc.autoTable({
+  autoTable(doc, {
     startY: yPos,
     head: [],
     body: currentWeather,
@@ -219,7 +222,7 @@ export function exportWeatherReport(weatherData: any, recommendations: string[])
       alert.description
     ]);
     
-    doc.autoTable({
+    autoTable(doc, {
       startY: yPos,
       head: [['Alert Type', 'Description']],
       body: alertsData,
@@ -236,7 +239,7 @@ export function exportWeatherReport(weatherData: any, recommendations: string[])
   yPos += 10;
   const recommendationsData = recommendations.map(rec => [rec]);
   
-  doc.autoTable({
+  autoTable(doc, {
     startY: yPos,
     head: [['Recommendation']],
     body: recommendationsData,
@@ -257,7 +260,7 @@ export function exportWeatherReport(weatherData: any, recommendations: string[])
       hour.weather[0].main
     ]);
     
-    doc.autoTable({
+    autoTable(doc, {
       startY: 30,
       head: [['Time', 'Temperature', 'Humidity', 'Conditions']],
       body: forecastData,
@@ -295,7 +298,7 @@ export function generateCropPredictionReport(predictions: any[]): void {
     pred.confidence ? `${(pred.confidence * 100).toFixed(1)}%` : 'N/A'
   ]);
   
-  doc.autoTable({
+  autoTable(doc, {
     startY: yPos + 10,
     head: [['Month', 'Predicted Yield (tons)', 'Confidence']],
     body: predictionData,

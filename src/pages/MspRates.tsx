@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { getMSPRates, getMSPHistory } from '../services/mspService';
+import { getMSPRates, getMSPHistory, clearMSPCache } from '../services/mspService';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../components/ui/table";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 // import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowUpDown, Calendar, Download, Info, TrendingUp } from 'lucide-react';
+import { ArrowUpDown, Calendar, Download, Info, RefreshCcw, TrendingUp } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Badge } from "../components/ui/badge";
 import { Skeleton } from "../components/ui/skeleton";
@@ -30,20 +30,23 @@ const MspRates = () => {
   const [selectedCrop, setSelectedCrop] = useState(null);
   const [historicalData, setHistoricalData] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchMSPData = async () => {
+    try {
+      setLoading(true);
+      const data = await getMSPRates();
+      setMspData(data);
+      console.log("MSP Data loaded:", data.length, "records");
+    } catch (error) {
+      console.error("Error fetching MSP data:", error);
+      toast.error("Failed to load MSP rates");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    async function fetchMSPData() {
-      try {
-        const data = await getMSPRates();
-        setMspData(data);
-        setLoading(false);
-      } catch (error) {
-        console.error("Error fetching MSP data:", error);
-        toast.error("Failed to load MSP rates");
-        setLoading(false);
-      }
-    }
-
     fetchMSPData();
   }, []);
 
@@ -57,6 +60,7 @@ const MspRates = () => {
         setHistoricalData(history);
       } catch (error) {
         console.error("Error fetching historical data:", error);
+        toast.error("Failed to load historical data");
       } finally {
         setHistoryLoading(false);
       }
@@ -64,6 +68,29 @@ const MspRates = () => {
 
     fetchHistoricalData();
   }, [selectedCrop]);
+
+  // Refresh data manually, clearing the cache first
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      clearMSPCache();
+      await fetchMSPData();
+      toast.success("MSP data refreshed successfully");
+      
+      // If there was a selected crop, refresh its history too
+      if (selectedCrop) {
+        const updatedCrop = mspData.find(item => item.id === selectedCrop.id);
+        if (updatedCrop) {
+          setSelectedCrop(updatedCrop);
+        }
+      }
+    } catch (error) {
+      console.error("Error refreshing data:", error);
+      toast.error("Failed to refresh MSP data");
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   // Filter by active tab and search term
   const filteredData = mspData.filter(item => 
@@ -156,6 +183,14 @@ const MspRates = () => {
             />
             <Button variant="outline" onClick={exportToCSV}>
               <Download className="mr-2 h-4 w-4" /> Export
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={handleRefresh} 
+              disabled={refreshing}
+            >
+              <RefreshCcw className={`mr-2 h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} /> 
+              Refresh
             </Button>
           </div>
         </div>
@@ -323,6 +358,14 @@ const MspRates = () => {
                               {selectedCrop.category}
                             </Badge>
                           </div>
+                          {selectedCrop.source && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-600 dark:text-gray-400">Data source:</span>
+                              <span className="text-xs text-gray-500">
+                                {selectedCrop.source}
+                              </span>
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}

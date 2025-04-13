@@ -7,6 +7,7 @@ import Weather from './pages/Weather';
 import Marketplace from './pages/Marketplace';
 import Dashboard from './pages/Dashboard';
 import MspRates from './pages/MspRates';
+import Schemes from './pages/Schemes';
 import { AppErrorBoundary } from './components/ErrorBoundary';
 import './i18n';
 
@@ -22,6 +23,7 @@ function App() {
             <Route path="marketplace" element={<Marketplace />} />
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="mspRates" element={<MspRates />} />
+            <Route path="schemes" element={<Schemes />} />
             {/* <Route path="https://chatbot-farm-assist.vercel.app/" element={<ChatBot />} /> */}
           </Route>
         </Routes>

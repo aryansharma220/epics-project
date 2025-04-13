@@ -96,3 +96,44 @@ export interface CropYield {
   temperature: number;
   notes?: string;
 }
+
+export interface Scheme {
+  id: string;
+  name: string;
+  category: 'agriculture' | 'financial' | 'insurance' | 'other';
+  ministry: string;
+  description: string;
+  eligibility: string[];
+  benefits: string[];
+  applicationProcess: string;
+  budget?: number;
+  website?: string;
+  lastUpdated?: string;
+  eligibilityFields: EligibilityField[];
+  metrics?: {
+    beneficiaries?: number;
+    successRate?: number;
+    popularityScore?: number;
+    statesCovered?: number;
+    avgPayout?: number;
+  };
+  documents?: string[];
+  timeline?: {
+    applicationStart?: string;
+    applicationEnd?: string;
+    implementationStart?: string;
+    completionDate?: string;
+  };
+  faqs?: Array<{
+    question: string;
+    answer: string;
+  }>;
+}
+
+export interface EligibilityField {
+  id: string;
+  label: string;
+  type: 'text' | 'number' | 'select';
+  options?: { label: string; value: string }[];
+  required: boolean;
+}

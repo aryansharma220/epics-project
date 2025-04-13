@@ -1,5 +1,6 @@
 // MSP (Minimum Support Price) service for crop rates
 import axios from 'axios';
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export interface MSPRate {
   id: string;
@@ -274,11 +275,13 @@ export const fallbackMSPRates: MSPRate[] = [
   }
 ];
 
+// Initialize Google Generative AI
+const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GOOGLE_AI_KEY || '');
+const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+
 // API endpoints for real-time MSP data
 const API_ENDPOINTS = {
-  MSP_DATA: 'https://api.data.gov.in/resource/1832c7b4-82ef-4734-b2b4-c2e3a38a28d3?api-key=579b464db66ec23bdd0000013a16ed80bc2b40904405c025b2c84480&format=json',
-  AGR_GOV_MSP: 'https://farmer.gov.in/mspstatements.aspx',
-  GEMINI_API: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent'
+  MSP_DATA: 'https://api.data.gov.in/resource/1832c7b4-82ef-4734-b2b4-c2e3a38a28d3?api-key=579b464db66ec23bdd0000013a16ed80bc2b40904405c025b2c84480&format=json'
 };
 
 // Cache mechanism to avoid excessive API calls
@@ -295,48 +298,41 @@ const cache = {
  */
 async function processWithGemini(rawData: any): Promise<MSPRate[]> {
   try {
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-    if (!apiKey) {
+    if (!import.meta.env.VITE_GOOGLE_AI_KEY) {
       console.warn('No Gemini API key found. Using basic data processing.');
       return transformDataToMSPRates(rawData);
     }
 
-    const response = await axios.post(
-      `${API_ENDPOINTS.GEMINI_API}?key=${apiKey}`,
-      {
-        contents: [{
-          parts: [{
-            text: `I have raw MSP (Minimum Support Price) data for crops in India that I need to process into a structured format.
-                  The data looks like this: ${JSON.stringify(rawData).substring(0, 1000)}...
-                  
-                  Please convert this data into a structured format matching this interface:
-                  
-                  interface MSPRate {
-                    id: string; // Generate unique IDs like 'k1', 'r2', etc. (k for kharif, r for rabi, o for other)
-                    crop: string; // Crop name
-                    variety?: string; // Variety if available
-                    category: 'kharif' | 'rabi' | 'other'; // Kharif (monsoon crops), Rabi (winter crops), or other
-                    year: string; // Format: "2024-25" - use the latest available year
-                    rate: number; // MSP rate in INR per quintal
-                    increase?: number; // Increase from previous year if available
-                    increasePercentage?: number; // Percentage increase from previous year
-                  }
-                  
-                  Categorize crops properly into kharif, rabi, and other categories based on crop types.
-                  Only include entries where you have high confidence about the data.
-                  Return the result as a JSON array without any explanation.`
-          }]
-        }]
-      }
-    );
-
-    const generatedContent = response.data.candidates[0].content.parts[0].text;
-    try {
-      const jsonMatch = generatedContent.match(/```json\n([\s\S]*?)\n```/) || 
-                         generatedContent.match(/```\n([\s\S]*?)\n```/) ||
-                         [null, generatedContent];
+    const prompt = `I have raw MSP (Minimum Support Price) data for crops in India that I need to process into a structured format.
+      The data looks like this: ${JSON.stringify(rawData).substring(0, 1000)}...
       
-      const jsonString = jsonMatch[1] || generatedContent;
+      Please convert this data into a structured format matching this interface:
+      
+      interface MSPRate {
+        id: string; // Generate unique IDs like 'k1', 'r2', etc. (k for kharif, r for rabi, o for other)
+        crop: string; // Crop name
+        variety?: string; // Variety if available
+        category: 'kharif' | 'rabi' | 'other'; // Kharif (monsoon crops), Rabi (winter crops), or other
+        year: string; // Format: "2024-25" - use the latest available year
+        rate: number; // MSP rate in INR per quintal
+        increase?: number; // Increase from previous year if available
+        increasePercentage?: number; // Percentage increase from previous year
+      }
+      
+      Categorize crops properly into kharif, rabi, and other categories based on crop types.
+      Only include entries where you have high confidence about the data.
+      Return the result as a JSON array without any explanation.`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    let responseText = response.text();
+    
+    try {
+      const jsonMatch = responseText.match(/```json\n([\s\S]*?)\n```/) || 
+                       responseText.match(/```\n([\s\S]*?)\n```/) ||
+                       [null, responseText];
+      
+      const jsonString = jsonMatch[1] || responseText;
       const processedData = JSON.parse(jsonString);
       
       if (Array.isArray(processedData) && processedData.length > 0) {
@@ -410,128 +406,79 @@ export const getMSPRates = async (): Promise<MSPRate[]> => {
 
     console.log('Fetching real-time MSP data...');
     
-    try {
-      const response = await axios.get(API_ENDPOINTS.MSP_DATA, {
-        params: {
-          api_key: import.meta.env.VITE_DATA_GOV_API_KEY,
-          format: 'json',
-          limit: 100
-        }
-      });
+    // try {
+    //   const response = await axios.get(API_ENDPOINTS.MSP_DATA, {
+    //     params: {
+    //       api_key: import.meta.env.VITE_DATA_GOV_API_KEY,
+    //       format: 'json',
+    //       limit: 100
+    //     }
+    //   });
       
-      if (response.data && response.data.records && response.data.records.length > 0) {
-        const mspData = await processWithGemini(response.data.records);
-        cache.mspRates = mspData;
-        cache.timestamp = Date.now();
-        return mspData;
-      }
-    } catch (error) {
-      console.error('Error fetching from data.gov.in API:', error);
-    }
+    //   if (response.data && response.data.records && response.data.records.length > 0) {
+    //     const mspData = await processWithGemini(response.data.records);
+    //     cache.mspRates = mspData;
+    //     cache.timestamp = Date.now();
+    //     return mspData;
+    //   }
+    // } catch (error) {
+    //   console.error('Error fetching from data.gov.in API:', error);
+    // }
     
     try {
-      const response = await axios.get(API_ENDPOINTS.AGR_GOV_MSP, {
-        responseType: 'text'
-      });
+      if (!import.meta.env.VITE_GOOGLE_AI_KEY) {
+        throw new Error('No Gemini API key found');
+      }
       
-      const tableMatches = response.data.match(/<table[^>]*>([\s\S]*?)<\/table>/gi);
+      const prompt = `Today is ${new Date().toDateString()}. Please fetch the latest Minimum Support Price (MSP) data for major crops in India for the current year from reliable government sources.
+
+      Format the data in the following JSON structure:
+      [
+        {
+          "id": "k1",
+          "crop": "Crop Name",
+          "variety": "Variety Name",
+          "category": "kharif",
+          "year": "2024-25",
+          "rate": 2183,
+          "increase": 143,
+          "increasePercentage": 7.0
+        },
+        ...
+      ]
+
+      Include all major kharif, rabi and commercial crops with their current MSPs.
+      Ensure you return properly structured JSON data that can be parsed directly.
+      Return the data as a valid JSON array without any markdown code blocks or other formatting.`;
       
-      if (tableMatches && tableMatches.length > 0) {
-        const mspTable = tableMatches.find(table => 
-          /(paddy|wheat|rice|maize)/i.test(table)
-        );
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      const responseText = response.text();
+      
+      try {
+        const jsonMatch = responseText.match(/```json\n([\s\S]*?)\n```/) || 
+                         responseText.match(/```\n([\s\S]*?)\n```/) ||
+                         [null, responseText];
         
-        if (mspTable) {
-          const rowMatches = mspTable.match(/<tr[^>]*>([\s\S]*?)<\/tr>/gi);
+        const jsonString = jsonMatch[1] || responseText;
+        const mspData = JSON.parse(jsonString);
+        
+        if (Array.isArray(mspData) && mspData.length > 0) {
+          console.log('Successfully fetched MSP data via Gemini');
           
-          if (rowMatches && rowMatches.length > 0) {
-            const rawData = rowMatches.slice(1).map(row => {
-              const cellMatches = row.match(/<td[^>]*>([\s\S]*?)<\/td>/gi);
-              if (!cellMatches) return null;
-              
-              const cells = cellMatches.map(cell => {
-                return cell.replace(/<[^>]+>/g, '').trim();
-              });
-              
-              return {
-                crop_name: cells[0],
-                msp: cells[cells.length > 2 ? 1 : 0],
-                previous_msp: cells[cells.length > 3 ? 2 : 1],
-              };
-            }).filter(Boolean);
-            
-            if (rawData.length > 0) {
-              const mspData = await processWithGemini(rawData);
-              cache.mspRates = mspData;
-              cache.timestamp = Date.now();
-              return mspData;
-            }
-          }
+          const enhancedData = mspData.map(item => ({
+            ...item,
+            source: 'Gemini AI generated',
+            lastUpdated: new Date().toISOString()
+          }));
+          
+          cache.mspRates = enhancedData;
+          cache.timestamp = Date.now();
+          
+          return enhancedData;
         }
-      }
-    } catch (error) {
-      console.error('Error extracting data from Farmer Portal:', error);
-    }
-    
-    try {
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-      if (apiKey) {
-        const response = await axios.post(
-          `${API_ENDPOINTS.GEMINI_API}?key=${apiKey}`,
-          {
-            contents: [{
-              parts: [{
-                text: `Today is ${new Date().toDateString()}. Please fetch the latest Minimum Support Price (MSP) data for major crops in India for the current year from reliable government sources.
-
-                Format the data in the following JSON structure:
-                [
-                  {
-                    "id": "k1",
-                    "crop": "Crop Name",
-                    "variety": "Variety Name",
-                    "category": "kharif",
-                    "year": "2024-25",
-                    "rate": 2183,
-                    "increase": 143,
-                    "increasePercentage": 7.0
-                  },
-                  ...
-                ]
-
-                Include all major kharif, rabi and commercial crops with their current MSPs.
-                Ensure you return properly structured JSON data that can be parsed directly.
-                Return the data as a valid JSON array without any markdown code blocks or other formatting.`
-              }]
-            }]
-          }
-        );
-
-        const generatedContent = response.data.candidates[0].content.parts[0].text;
-        try {
-          const jsonMatch = generatedContent.match(/```json\n([\s\S]*?)\n```/) || 
-                           generatedContent.match(/```\n([\s\S]*?)\n```/) ||
-                           [null, generatedContent];
-          
-          const jsonString = jsonMatch[1] || generatedContent;
-          const mspData = JSON.parse(jsonString);
-          
-          if (Array.isArray(mspData) && mspData.length > 0) {
-            console.log('Successfully fetched MSP data via Gemini');
-            
-            const enhancedData = mspData.map(item => ({
-              ...item,
-              source: 'Gemini AI generated',
-              lastUpdated: new Date().toISOString()
-            }));
-            
-            cache.mspRates = enhancedData;
-            cache.timestamp = Date.now();
-            
-            return enhancedData;
-          }
-        } catch (error) {
-          console.error('Error parsing Gemini-generated MSP data:', error);
-        }
+      } catch (error) {
+        console.error('Error parsing Gemini-generated MSP data:', error);
       }
     } catch (error) {
       console.error('Error using Gemini to fetch live data:', error);
@@ -560,51 +507,46 @@ export const getMSPHistory = async (cropId: string): Promise<any[]> => {
     if (!crop) return [];
     
     try {
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-      if (apiKey) {
-        const response = await axios.post(
-          `${API_ENDPOINTS.GEMINI_API}?key=${apiKey}`,
-          {
-            contents: [{
-              parts: [{
-                text: `Please provide the historical MSP (Minimum Support Price) data for ${crop.crop}${crop.variety ? ' (' + crop.variety + ')' : ''} in India for the last 5 years.
-                
-                The current MSP for ${crop.year} is ₹${crop.rate} per quintal.
-                
-                Return the data as a JSON array with this structure:
-                [
-                  { "year": "2024-25", "rate": 2183 },
-                  { "year": "2023-24", "rate": 2040 },
-                  ...
-                ]
-                
-                Ensure the data is accurate based on official government records. If exact data isn't available for certain years, provide realistic estimates based on known increase patterns.
-                Return only the JSON array without any explanation.`
-              }]
-            }]
-          }
-        );
+      if (!import.meta.env.VITE_GOOGLE_AI_KEY) {
+        throw new Error('No Gemini API key found');
+      }
+      
+      const prompt = `Please provide the historical MSP (Minimum Support Price) data for ${crop.crop}${crop.variety ? ' (' + crop.variety + ')' : ''} in India for the last 5 years.
+      
+      The current MSP for ${crop.year} is ₹${crop.rate} per quintal.
+      
+      Return the data as a JSON array with this structure:
+      [
+        { "year": "2024-25", "rate": 2183 },
+        { "year": "2023-24", "rate": 2040 },
+        ...
+      ]
+      
+      Ensure the data is accurate based on official government records. If exact data isn't available for certain years, provide realistic estimates based on known increase patterns.
+      Return only the JSON array without any explanation.`;
+      
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      const responseText = response.text();
 
-        const generatedContent = response.data.candidates[0].content.parts[0].text;
-        try {
-          const jsonMatch = generatedContent.match(/```json\n([\s\S]*?)\n```/) || 
-                           generatedContent.match(/```\n([\s\S]*?)\n```/) ||
-                           [null, generatedContent];
-          
-          const jsonString = jsonMatch[1] || generatedContent;
-          const historicalData = JSON.parse(jsonString);
-          
-          if (Array.isArray(historicalData) && historicalData.length > 0) {
-            console.log('Successfully fetched historical MSP data via Gemini');
-            return historicalData.sort((a, b) => {
-              const yearA = parseInt(a.year.split('-')[0]);
-              const yearB = parseInt(b.year.split('-')[0]);
-              return yearB - yearA;
-            });
-          }
-        } catch (error) {
-          console.error('Error parsing Gemini historical data response:', error);
+      try {
+        const jsonMatch = responseText.match(/```json\n([\s\S]*?)\n```/) || 
+                         responseText.match(/```\n([\s\S]*?)\n```/) ||
+                         [null, responseText];
+        
+        const jsonString = jsonMatch[1] || responseText;
+        const historicalData = JSON.parse(jsonString);
+        
+        if (Array.isArray(historicalData) && historicalData.length > 0) {
+          console.log('Successfully fetched historical MSP data via Gemini');
+          return historicalData.sort((a, b) => {
+            const yearA = parseInt(a.year.split('-')[0]);
+            const yearB = parseInt(b.year.split('-')[0]);
+            return yearB - yearA;
+          });
         }
+      } catch (error) {
+        console.error('Error parsing Gemini historical data response:', error);
       }
     } catch (error) {
       console.error('Error using Gemini for historical data:', error);

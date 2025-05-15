@@ -74,20 +74,6 @@ VITE_DATA_GOV_API_KEY=your_data_gov_api_key
 npm run dev
 \`\`\`
 
-## 🏗️ Project Structure
-
-\`\`\`
-src/
-├── components/         # Reusable UI components
-├── pages/             # Route pages
-├── services/          # API and business logic
-├── store/             # State management
-├── types/             # TypeScript type definitions
-├── utils/             # Helper functions
-├── i18n/              # Internationalization
-└── hooks/             # Custom React hooks
-\`\`\`
-
 ## 🔧 Technology Stack
 
 ### Frontend
@@ -146,38 +132,31 @@ src/
 ## 🌐 API Documentation
 
 ### Weather API
-\`\`\`typescript
+
 GET /api/weather
 Parameters:
 - lat: number
 - lng: number
 Returns: WeatherData
-\`\`\`
+
 
 ### Soil Analysis API
-\`\`\`typescript
+
 GET /api/soil
 Parameters:
 - lat: number
 - lng: number
 Returns: SoilData
-\`\`\`
+
 
 ### Crop Recommendations API
-\`\`\`typescript
+
 GET /api/crops
 Parameters:
 - soil: SoilData
 - weather: WeatherData
 Returns: CropData[]
-\`\`\`
 
-## 🌍 Internationalization
-
-Supported languages:
-- English
-- Hindi
-- Other regional languages (configurable)
 
 ## 📱 Responsive Design
 
@@ -189,31 +168,7 @@ Supported languages:
 ## 🚀 Deployment
 
 The application is deployed on Vercel and can be accessed at:
-[https://farmassist.vercel.app](https://farmassist.vercel.app)
-
-### Deployment Steps
-1. Push to main branch
-2. Automatic deployment via Vercel
-3. Environment variable configuration
-4. Domain setup and SSL
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Commit changes
-4. Push to the branch
-5. Open a pull request
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 👥 Team
-
-- Developer: [Your Name]
-- Project Guide: [Guide Name]
-- Institution: [Institution Name]
+[https://my-farm-assist.vercel.app](https://my-farm-assist.vercel.app/)
 
 ## 🙏 Acknowledgments
 
@@ -224,7 +179,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📞 Support
 
-For support, email [your-email@example.com] or join our Discord server.
+For support, email [aryansharma220318@gmail.com].
 
 ---
 

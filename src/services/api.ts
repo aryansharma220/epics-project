@@ -56,11 +56,10 @@ export async function getSoilData(lat: number, lng: number): Promise<SoilData> {
   const cacheKey = getCacheKey('soil', lat, lng);
   const cached = getFromCache<SoilData>(cacheKey);
   if (cached) return cached;
-
   try {
     // Step 1: Get location data for context
     let locationName = "";
-    let regionData = {};
+    let locationRegionData = {};
     
     try {
       const response = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${import.meta.env.VITE_MAPBOX_ACCESS_TOKEN || ''}`);
@@ -72,12 +71,11 @@ export async function getSoilData(lat: number, lng: number): Promise<SoilData> {
         // Extract more detailed location context
         const contextFeatures = data.features[0].context || [];
         const countryData = contextFeatures.find((item: any) => item.id.startsWith('country'));
-        const regionData = contextFeatures.find((item: any) => item.id.startsWith('region'));
+        const regionFeature = contextFeatures.find((item: any) => item.id.startsWith('region'));
         const districtData = contextFeatures.find((item: any) => item.id.startsWith('district'));
         
-        regionData = {
-          country: countryData ? countryData.text : '',
-          region: regionData ? regionData.text : '',
+        locationRegionData = {          country: countryData ? countryData.text : '',
+          region: regionFeature ? regionFeature.text : '',
           district: districtData ? districtData.text : ''
         };
       }
@@ -119,7 +117,7 @@ Today's date is ${currentDate} (${currentSeason} season).
 Based on:
 1. ISRIC SoilGrids global soil data which includes soil pH, organic carbon, clay content, and nitrogen levels
 2. Regional soil studies in this specific area
-3. Known agricultural patterns and soil challenges in ${JSON.stringify(regionData)}
+3. Known agricultural patterns and soil challenges in ${JSON.stringify(locationRegionData)}
 
 Provide soil characteristics that would be found at this exact location, including:
 - pH levels (realistic for this region)

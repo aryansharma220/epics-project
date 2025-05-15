@@ -19,7 +19,7 @@ export default function Navbar() {
   };
 
   const openChatBot =() =>{
-    window.location.href = 'https://chatbot-farm-assist.vercel.app/';
+    window.location.href = 'http://localhost:3000/';
   }
 
   return (
@@ -42,12 +42,12 @@ export default function Navbar() {
             </div>
           </div>
           <div className="flex items-center space-x-4">
-            <button
+            {/* <button
               onClick={openChatBot}
               className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
             >
               <BotIcon size={20} />
-            </button>
+            </button> */}
             <button
               onClick={toggleLanguage}
               className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"

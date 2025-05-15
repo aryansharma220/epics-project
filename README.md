@@ -1,5 +1,8 @@
 # FarmAssist 🌾
 
+![image](https://github.com/user-attachments/assets/e83b42b7-4483-4d8c-8369-c744317b0e8e)
+
+
 A comprehensive agricultural assistance platform built to empower farmers with modern technology, data-driven insights, and access to government schemes.
 
 [![Built with Vite](https://img.shields.io/badge/Built_with-Vite-646CFF?style=flat-square&logo=vite)](https://vitejs.dev/)
@@ -14,65 +17,58 @@ A comprehensive agricultural assistance platform built to empower farmers with m
 - Soil quality analysis using AI
 - Crop recommendation system based on local conditions
 - Weather-based farming insights
+  
+![image](https://github.com/user-attachments/assets/139238ea-1169-4236-aa1a-3de8ca1b9df5)
+
 
 ### 🌦️ Weather Intelligence
 - Real-time weather updates
 - Advanced weather forecasting
 - Agricultural alerts and advisories
 - Weather-based crop management tips
+  
+![image](https://github.com/user-attachments/assets/a6d41259-09a2-4fb8-9ae7-10b1ca004275)
+
 
 ### 💰 Financial Services
 - Government scheme eligibility checker
 - MSP (Minimum Support Price) rate tracker
 - Subsidy information and applications
 - Financial planning tools
+  
+  ![image](https://github.com/user-attachments/assets/65f421fe-c997-4dc9-8da3-f2bb688c806b)
+  
+  ![image](https://github.com/user-attachments/assets/ea2bd3e4-dba2-4cb2-88d7-5339f90a30b8)
+
 
 ### 🏪 Agricultural Marketplace
 - Buy/sell agricultural products
 - Equipment and tools marketplace
 - Direct farmer-to-consumer platform
 - Transparent pricing system
+  
+![image](https://github.com/user-attachments/assets/1529fdcd-a769-4366-a25b-b377b082e2e7)
+
+### 🧮 Personlised Dashboard
+- Real-time crop monitoring and analytics
+- Custom yield predictions using AI
+- Financial insights and profit tracking
+- Farm resource management
+- Interactive data visualization with charts and graphs
+- Personalized recommendations based on farming history
+- Activity timeline and task management
+- Weather impact analysis on crops
+- Smart notifications and reminders
+- Export reports in multiple formats (PDF, CSV)
+  
+![image](https://github.com/user-attachments/assets/af3c3a65-5a85-43a4-bc4b-ff880fab85ea)
+
 
 ### 🌐 Multi-language Support
 - Supports multiple Indian languages
 - Localized content and information
 - Regional farming practices integration
 - Cultural context awareness
-
-## 🚀 Getting Started
-
-### Prerequisites
-- Node.js (v18 or higher)
-- npm or yarn
-- Git
-
-### Installation
-
-1. Clone the repository:
-\`\`\`bash
-git clone https://github.com/yourusername/farmassist.git
-cd farmassist
-\`\`\`
-
-2. Install dependencies:
-\`\`\`bash
-npm install
-\`\`\`
-
-3. Create a .env file in the root directory:
-\`\`\`env
-VITE_GOOGLE_API_KEY=your_google_api_key
-VITE_API_URL=your_api_url
-VITE_GOOGLE_AI_KEY=your_google_ai_key
-VITE_WEATHER_API_KEY=your_weather_api_key
-VITE_MAPBOX_ACCESS_TOKEN=your_mapbox_token
-VITE_DATA_GOV_API_KEY=your_data_gov_api_key
-\`\`\`
-
-4. Start the development server:
-\`\`\`bash
-npm run dev
-\`\`\`
 
 ## 🔧 Technology Stack
 

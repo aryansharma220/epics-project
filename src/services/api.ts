@@ -340,7 +340,7 @@ export async function getWeatherData(lat: number, lng: number) {
 
     // Get air pollution data for more comprehensive environmental analysis
     const airPollutionResponse = await fetch(
-      `http://api.openweathermap.org/data/2.5/air_pollution?lat=${lat}&lon=${lng}&appid=${apiKey}`
+      `https://api.openweathermap.org/data/2.5/air_pollution?lat=${lat}&lon=${lng}&appid=${apiKey}`
     );
     const airPollutionData = await airPollutionResponse.json();
     
@@ -611,7 +611,7 @@ function generateFarmingAdvisories(currentData: any, forecastList: any[]) {
 }
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000/api',
+  baseURL: import.meta.env.VITE_API_URL || 'https://localhost:3000/api',
 });
 
 export const cropDataApi = {
